@@ -164,60 +164,71 @@ function startWaterFlows(map) {
 }
 
 /**
- * 6. ✅ ฟังก์ชัน Export PDF
+ * 6. ✅ ฟังก์ชัน Export PDF (ปรับปรุงใหม่)
  */
 async function captureAndDownloadPDF() {
     const { jsPDF } = window.jspdf;
     
-    // 1. เลือกพื้นที่ที่จะ Capture (Map + Legend)
+    // 1. เลือกพื้นที่ที่จะ Capture
     const element = document.getElementById('map-capture-area');
     const btn = document.getElementById('export-btn');
 
-    // 2. ซ่อนปุ่มกดก่อนถ่ายรูป (จะได้ไม่ติดใน PDF)
-    btn.style.display = 'none';
+    // เก็บข้อความเดิมไว้ก่อน
+    const originalText = btn.innerHTML;
 
     try {
+        // เปลี่ยนสถานะปุ่มให้รู้ว่ากำลังทำงาน
+        btn.innerHTML = '⏳ กำลังสร้าง PDF...';
+        btn.disabled = true; // ล็อคปุ่มกันกดย้ำ
+        btn.classList.add('opacity-75', 'cursor-wait');
+
+        // รอสักนิดให้ UI อัปเดตก่อนเริ่มหนัก
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 2. ซ่อนปุ่มกดก่อนถ่ายรูป (จะได้ไม่ติดใน PDF)
+        // ใช้ visibility แทน display เพื่อไม่ให้ Layout ขยับ (เผื่อไว้)
+        btn.style.opacity = '0'; 
+
         // 3. แปลง HTML เป็น Canvas
         const canvas = await html2canvas(element, {
-            useCORS: true, // อนุญาตให้โหลดรูปข้าม Domain (สำคัญ)
+            useCORS: true, 
             allowTaint: true,
-            scale: 2 // เพิ่มความชัด (2 = ชัดขึ้น 2 เท่า)
+            scale: 2 
         });
 
-        // 4. สร้างไฟล์ PDF (แนวนอน Landscape, หน่วย mm, ขนาด A4)
+        // 4. สร้างไฟล์ PDF
         const pdf = new jsPDF('l', 'mm', 'a4');
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
 
-        // คำนวณขนาดรูปให้พอดีกับ A4
         const imgData = canvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(imgData);
-        const pdfHeight = pageHeight;
-        const pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
         
-        // ถ้ากว้างเกิน A4 ให้ยึดความกว้างเป็นหลักแทน
-        let finalW = pdfWidth;
-        let finalH = pdfHeight;
-        let x = (pageWidth - finalW) / 2; // จัดกึ่งกลางแกน X
-        let y = 0;
-
-        if (pdfWidth > pageWidth) {
-            finalW = pageWidth;
-            finalH = (imgProps.height * finalW) / imgProps.width;
-            x = 0;
-            y = (pageHeight - finalH) / 2; // จัดกึ่งกลางแกน Y
+        let pdfWidth = pageWidth;
+        let pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        // ถ้าสูงเกินหน้า A4 ให้ปรับตามความสูงแทน
+        if (pdfHeight > pageHeight) {
+            pdfHeight = pageHeight;
+            pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
         }
 
+        const x = (pageWidth - pdfWidth) / 2;
+        const y = (pageHeight - pdfHeight) / 2;
+
         // 5. ใส่รูปลง PDF และ Save
-        pdf.addImage(imgData, 'PNG', x, y, finalW, finalH);
+        pdf.addImage(imgData, 'PNG', x, y, pdfWidth, pdfHeight);
         pdf.save('water-map-report.pdf');
 
     } catch (err) {
         console.error("PDF Export Error:", err);
         alert("เกิดข้อผิดพลาดในการสร้าง PDF");
     } finally {
-        // 6. แสดงปุ่มกลับมาเหมือนเดิม
-        btn.style.display = 'flex';
+        // 6. คืนค่าปุ่มกลับมาเหมือนเดิม
+        btn.style.opacity = '1';
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        btn.classList.remove('opacity-75', 'cursor-wait');
     }
 }
 
