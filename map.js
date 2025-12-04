@@ -4,17 +4,15 @@
 const CONFIG = {
     // URL ของรูปภาพพื้นหลัง
     IMAGE_URL: 'img/0123.png', 
-    // ขอบเขตของรูปภาพ (คำนวณตาม Ratio ~1.69)
     IMAGE_BOUNDS: [[13.7600, 100.4660], [13.7200, 100.5340]],
-    // จุดกึ่งกลาง (อาจไม่จำเป็นต้องใช้ถ้าเรา FitBounds ตลอด)
     MAP_CENTER: [13.7400, 100.5000],
     ZOOM: 14,
-    MIN_ZOOM: 12, // กำหนดซูมต่ำสุด (ไม่ให้ซูมออกจนเล็กเกินไป)
-    MAX_ZOOM: 18  // กำหนดซูมสูงสุด
+    MIN_ZOOM: 12,
+    MAX_ZOOM: 18
 };
 
 /**
- * 1. ฟังก์ชันเริ่มต้นแผนที่ (Initialize Map)
+ * 1. ฟังก์ชันเริ่มต้นแผนที่
  */
 function initMap() {
     const map = L.map('map', {
@@ -23,20 +21,15 @@ function initMap() {
         minZoom: CONFIG.MIN_ZOOM,
         maxZoom: CONFIG.MAX_ZOOM,
         crs: L.CRS.EPSG3857,
-        
-        // ✅ เปิดการควบคุมเพื่อให้ซูมและเลื่อนได้ภายในขอบเขต
-        zoomControl: true,         // เปิดปุ่ม +/-
-        scrollWheelZoom: true,     // เปิดการหมุนลูกกลิ้งเมาส์
-        doubleClickZoom: true,     // เปิดการดับเบิ้ลคลิก
-        touchZoom: true,           // เปิดการใช้นิ้วถ่างขยาย
-        dragging: true,            // เปิดการลากแผนที่
-
-        // ✅ แต่ยังคงล็อคขอบเขตให้อยู่แค่ในรูปภาพ (ห้ามเลื่อนออกนอกภาพ)
+        zoomControl: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        touchZoom: true,
+        dragging: true,
         maxBounds: CONFIG.IMAGE_BOUNDS, 
-        maxBoundsViscosity: 1.0 // ค่าความหนืด 1.0 คือชนขอบแล้วหยุดทันที ไม่มียืดหยุ่น
+        maxBoundsViscosity: 1.0
     });
 
-    // เพิ่ม Event Listener: เมื่อมีการปรับขนาดหน้าจอ ให้ปรับขอบเขตให้พอดี
     window.addEventListener('resize', () => {
         map.fitBounds(CONFIG.IMAGE_BOUNDS);
     });
@@ -45,20 +38,19 @@ function initMap() {
 }
 
 /**
- * 2. ฟังก์ชันเพิ่มรูปพื้นหลัง (Background Layer)
+ * 2. เพิ่มรูปพื้นหลัง
  */
 function addBackgroundLayer(map) {
-    const imageOverlay = L.imageOverlay(CONFIG.IMAGE_URL, CONFIG.IMAGE_BOUNDS, {
+    L.imageOverlay(CONFIG.IMAGE_URL, CONFIG.IMAGE_BOUNDS, {
         opacity: 1.0,
         interactive: true
     }).addTo(map);
 
-    // ปรับมุมกล้องให้พอดีกับรูปภาพตั้งแต่เริ่มต้น
     map.fitBounds(CONFIG.IMAGE_BOUNDS);
 }
 
 /**
- * 3. ฟังก์ชันเพิ่มจุดวัดน้ำ (Water Stations)
+ * 3. เพิ่มจุดวัดน้ำ
  */
 function addWaterStations(map) {
     const waterStations = [
@@ -68,7 +60,6 @@ function addWaterStations(map) {
     ];
 
     waterStations.forEach(function(station) {
-        // ใช้ circle (ขนาดเมตร) เพื่อให้สัดส่วนสมจริงกับแผนที่
         const circle = L.circle([station.lat, station.lng], {
             color: 'white',
             weight: 2,
@@ -90,7 +81,7 @@ function addWaterStations(map) {
 }
 
 /**
- * 4. ฟังก์ชันคำนวณทิศทาง (Helper: Get Bearing)
+ * 4. Helper: คำนวณทิศทาง
  */
 function getBearing(startLat, startLng, destLat, destLng) {
     const toRad = (deg) => deg * (Math.PI / 180);
@@ -109,16 +100,14 @@ function getBearing(startLat, startLng, destLat, destLng) {
 }
 
 /**
- * 5. ฟังก์ชันสร้าง Animation ลูกศร (Moving Arrow)
+ * 5. Animation ลูกศร
  */
 function createMovingArrow(map, start, end, duration = 2000) {
     const startLat = start[0], startLng = start[1];
     const endLat = end[0], endLng = end[1];
 
-    // คำนวณมุม
     const angle = getBearing(startLat, startLng, endLat, endLng);
 
-    // สร้างไอคอน (ใช้ HTML เพื่อให้ปรับ CSS transform ได้ง่าย)
     const arrowIcon = L.divIcon({
         className: 'arrow-icon',
         html: `<div class="moving-arrow-body" style="transform: rotate(${angle}deg);"></div>`, 
@@ -126,10 +115,8 @@ function createMovingArrow(map, start, end, duration = 2000) {
         iconAnchor: [10, 10]
     });
 
-    // สร้าง Marker
     const marker = L.marker([startLat, startLng], { icon: arrowIcon }).addTo(map);
 
-    // เริ่ม Animation Loop
     let startTime = null;
 
     function animate(timestamp) {
@@ -141,33 +128,23 @@ function createMovingArrow(map, start, end, duration = 2000) {
             progress = 0;
         }
 
-        // Linear Interpolation (คำนวณตำแหน่งปัจจุบัน)
         const currentLat = startLat + (endLat - startLat) * progress;
         const currentLng = startLng + (endLng - startLng) * progress;
 
         marker.setLatLng([currentLat, currentLng]);
         
-        // --- ✅ Logic การปรับขนาดตาม Zoom ---
-        // ดึงค่า Zoom ปัจจุบัน
+        // Logic ปรับขนาดตาม Zoom
         const currentZoom = map.getZoom();
-        
-        // คำนวณ Scale Factor: เทียบกับ Base Zoom ที่ตั้งไว้ใน CONFIG (14)
-        // สูตร: 2 ^ (Zoom ปัจจุบัน - Zoom เริ่มต้น)
-        // เช่น Zoom 14 -> scale 1 (เท่าเดิม), Zoom 15 -> scale 2 (ใหญ่ขึ้น 2 เท่า)
         const scale = Math.pow(2, currentZoom - CONFIG.ZOOM);
 
-        // เข้าถึง Element ของไอคอนเพื่อปรับ CSS Transform
         const iconElement = marker.getElement();
         if (iconElement) {
             const body = iconElement.querySelector('.moving-arrow-body');
             if (body) {
-                // คงค่า rotation เดิมไว้ และเพิ่ม scale เข้าไป
                 body.style.transform = `rotate(${angle}deg) scale(${scale})`;
             }
         }
-        // ------------------------------------
 
-        // Fade In/Out Effect
         let opacity = 1;
         if (progress < 0.1) opacity = progress * 10;
         if (progress > 0.8) opacity = (1 - progress) * 5;
@@ -179,27 +156,81 @@ function createMovingArrow(map, start, end, duration = 2000) {
     requestAnimationFrame(animate);
 }
 
-/**
- * 6. ฟังก์ชันเริ่มระบบไหลของน้ำทั้งหมด (Main Flow Controller)
- */
 function startWaterFlows(map) {
-    // เส้นที่ 1: ไหลจากเหนือลงใต้
     createMovingArrow(map, [13.7580, 100.4950], [13.7480, 100.4950], 3000);
-
-    // เส้นที่ 2: ไหลจากซ้ายไปขวา (เฉียงๆ)
     createMovingArrow(map, [13.7450, 100.4900], [13.7350, 100.5100], 4000);
-
-    // เส้นที่ 3: ไหลเข้าหาจุดวิกฤต (แดง)
     createMovingArrow(map, [13.7400, 100.5000], [13.7350, 100.5050], 2500);
-
-    // เส้นที่ 4: ไหลออกจากจุดเฝ้าระวัง (ส้ม)
     createMovingArrow(map, [13.7450, 100.5150], [13.7550, 100.5250], 3500);
 }
 
-// --- เริ่มต้นการทำงานเมื่อโหลดหน้าเว็บเสร็จ ---
+/**
+ * 6. ✅ ฟังก์ชัน Export PDF
+ */
+async function captureAndDownloadPDF() {
+    const { jsPDF } = window.jspdf;
+    
+    // 1. เลือกพื้นที่ที่จะ Capture (Map + Legend)
+    const element = document.getElementById('map-capture-area');
+    const btn = document.getElementById('export-btn');
+
+    // 2. ซ่อนปุ่มกดก่อนถ่ายรูป (จะได้ไม่ติดใน PDF)
+    btn.style.display = 'none';
+
+    try {
+        // 3. แปลง HTML เป็น Canvas
+        const canvas = await html2canvas(element, {
+            useCORS: true, // อนุญาตให้โหลดรูปข้าม Domain (สำคัญ)
+            allowTaint: true,
+            scale: 2 // เพิ่มความชัด (2 = ชัดขึ้น 2 เท่า)
+        });
+
+        // 4. สร้างไฟล์ PDF (แนวนอน Landscape, หน่วย mm, ขนาด A4)
+        const pdf = new jsPDF('l', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        // คำนวณขนาดรูปให้พอดีกับ A4
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfHeight = pageHeight;
+        const pdfWidth = (imgProps.width * pdfHeight) / imgProps.height;
+        
+        // ถ้ากว้างเกิน A4 ให้ยึดความกว้างเป็นหลักแทน
+        let finalW = pdfWidth;
+        let finalH = pdfHeight;
+        let x = (pageWidth - finalW) / 2; // จัดกึ่งกลางแกน X
+        let y = 0;
+
+        if (pdfWidth > pageWidth) {
+            finalW = pageWidth;
+            finalH = (imgProps.height * finalW) / imgProps.width;
+            x = 0;
+            y = (pageHeight - finalH) / 2; // จัดกึ่งกลางแกน Y
+        }
+
+        // 5. ใส่รูปลง PDF และ Save
+        pdf.addImage(imgData, 'PNG', x, y, finalW, finalH);
+        pdf.save('water-map-report.pdf');
+
+    } catch (err) {
+        console.error("PDF Export Error:", err);
+        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+    } finally {
+        // 6. แสดงปุ่มกลับมาเหมือนเดิม
+        btn.style.display = 'flex';
+    }
+}
+
+// --- เริ่มต้นการทำงาน ---
 document.addEventListener('DOMContentLoaded', () => {
     const map = initMap();
     addBackgroundLayer(map);
     addWaterStations(map);
     startWaterFlows(map);
+
+    // ผูก Event ปุ่มกด PDF
+    const exportBtn = document.getElementById('export-btn');
+    if(exportBtn) {
+        exportBtn.addEventListener('click', captureAndDownloadPDF);
+    }
 });
